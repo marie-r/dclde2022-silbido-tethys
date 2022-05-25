@@ -27,7 +27,7 @@ and are described in more detail below.
 
 # Usage
 
-The function dclde_deployments2xml will create a set of deployment records suitable
+The function **dclde_deployments2xml** will create a set of deployment records suitable
 for use in Tethys.  As the R/V Lasker and R/V Sette data have gaps in their records, 
 these are broken up into mulitple deployments.  We also downsample the array
 GPS information to one sample per minute.  For localization, this is not ideal,
@@ -36,7 +36,7 @@ and increases efficiency for most tasks.  Note that we used a different version
 of the GPS than the one distributed with the data set, if you do not have access
 to this, change the variable complete_gps to false.
 
-Function dclde_process_detections assumes that the detections
+Function **dclde_process_detections** assumes that the detections
 are stored relative to the direcotry named in variable base_dir.
 Subdirectories 1705 and 1706 representing the arrays used on the R/V 
 Lasker and R/V Sette respectively should be present.   We group detections
@@ -50,5 +50,15 @@ things in Tethys.
 Both of these functions will create a set of XML files that can be
 uploaded to Tethys using standard Tehtys upload techniques (see the
 Tethys manual for details).
+
+# Other
+Several helper functions are included in this repository.
+- dclde_detections2xml - Called by dclde_process_detections to generate the 
+ XML files.
+- binary_search - Fast sorted array searching
+- createSubclass - Helper function to overcome Matlab limitation that does not
+ allow creation of nested subclasses.
+- effort-diel - Not yet used
+- audit_gps - identified issues with GPS tracks
 
 
