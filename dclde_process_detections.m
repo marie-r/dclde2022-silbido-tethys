@@ -1,33 +1,54 @@
-function dclde_process_detections
-% dclde_process_detections
+function dclde_process_detections(base_dir)
+% dclde_process_detections(base_dir)
 % Custom Matlab script for converting silbido format detections
 % to Tethys
 % 
 % This is a one off script designed for the DCLDE 2022 data set,
 % but can be adapted to convert detections in general.
+% 
+% Note that we assume the deployment documents have already been
+% added to the Tethys database.  (These documents are queried.)
+% 
+% base_dir is a string containing the root directory to be processed
+% We expect the following subdirectories
+%   detections - contains silbido detections
+%   xml/detections - directory where XML files will be stored 
+%     (created if it does not exist)
+% If base_dir is not provided, the current working directory is used.
 
-base_dir = 'D:/dclde2022';
+if nargin < 1
+    base_dir = '.';
+end
 % source and output directories
 detections_dir = fullfile(base_dir, 'detections');
-out_dir = fullfile(detections_dir, 'metadata', 'detections');
+xml_dir = fullfile(base_dir, 'xml');
+out_dir = fullfile(xml_dir, 'detections');
+
+if ~ isdir(xml_dir)
+    mkdir(xml_dir);
+end
+if ~ isdir(out_dir)
+    mkdir(out_dir);
+end
 
 % Tethys server, modify host name as appropriate
 q = dbInit('Server', 'localhost');
 
 project = 'DCLDE2022';
 % Get information about Tethys deployments
-dep = dbDeploymentInfo(q, 'Project', project);
-ids = string(arrayfun(@(x) x.Id, dep));
-starts = arrayfun(@(x) x.DeploymentDetails.AudioTimeStamp, dep);
+dep = dbGetDeployments(q, 'Project', project);
+ids = string(arrayfun(@(x) x.Deployment.Id, dep));
+starts = arrayfun(@(x) x.Deployment.DeploymentDetails.AudioTimeStamp, dep);
 starts = datetime(vertcat(starts{:}), 'ConvertFrom', 'datenum');
-stops = arrayfun(@(x) x.RecoveryDetails.AudioTimeStamp, dep);
+stops = arrayfun(@(x) x.Deployment.RecoveryDetails.AudioTimeStamp, dep);
 stops = datetime(vertcat(stops{:}), 'ConvertFrom', 'datenum');
-cruise = string(arrayfun(@(x) x.Cruise, dep));
-deployments = table(ids, cruise, starts, stops);
+cruise = string(arrayfun(@(x) x.Deployment.Cruise, dep));
+deployments = table(ids', cruise', starts, stops, ...
+    'VariableNames', {'Id', 'cruise', 'start', 'stop'});
 
 cruises = ["Lasker", "Sette"];
 directories = ["1705", "1706"];
-preparer = 'pconant';  % person who prepared data
+preparer = 'Peter Conant';  % person who prepared data
 
 species = 180404;  % odontocetes
 for cruise_idx = 1:length(cruises)
@@ -135,8 +156,8 @@ id = sprintf('%s_silbido_%s_%s', project, cruise, ...
 % deployment.
 deployment = deployments( ...
     deployments.cruise == cruise & ...
-    deployments.starts <= timestamps(1) & ...
-    deployments.stops >= timestamps(1), :);
+    deployments.start <= timestamps(1) & ...
+    deployments.stop >= timestamps(1), :);
 
 xml_file = fullfile(out_dir, sprintf('%s.xml', id));
 start_eff = timestamps(1);
@@ -148,5 +169,5 @@ showonly = false;
 if ~ showonly
     dclde_detections2xml(xml_file, id, ...
         paths, timestamps, start_eff, end_eff, ...
-        deployment.ids, preparer, species);
+        deployment.Id, preparer, species);
 end

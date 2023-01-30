@@ -7,9 +7,9 @@
 import nilus.*
 
 % Data location
-metadata_loc = 'D:\dclde2022\detections\metadata';
+metadata_loc = 'U:\corpora-old\dclde2022';
 % Output location
-xml_loc = fullfile(metadata_loc, 'deployments');
+xml_loc = fullfile(metadata_loc, 'xml', 'deployments');
 % source metadata in files:
 % spreadsheet - array configuration information
 % .csv files - GPS tracks
@@ -32,6 +32,8 @@ bits = 16;  % acoustic sample quantization
 
 marshaller = MarshalXML();
 helper = Helper();
+
+degrees = 360;  % degrees around the globe
 
 for pidx = 1:length(projects)
     % Get information about deployments on current ship from specified
@@ -91,7 +93,7 @@ for pidx = 1:length(projects)
         
         % Populate inofrmation about project, deployment, and cruise
         d.setProject('DCLDE2022');
-        d.setDeploymentID(eidx);
+        d.setDeploymentId(eidx);
         d.setCruise(cruises(pidx));
         
         d.setPlatform('towed array');
@@ -99,7 +101,7 @@ for pidx = 1:length(projects)
         % Describe the arrays
         instrument = d.getInstrument();
         instrument.setType('inline multichannel array');
-        instrument.setID(sprintf('%s, %s', ...
+        instrument.setInstrumentId(sprintf('%s, %s', ...
             efforts.Array1{eidx}, efforts.Array2{eidx}));
         
         % Populate information for each channel
@@ -174,20 +176,20 @@ for pidx = 1:length(projects)
             
             % Populate deployment data, e.g. tracklines
             data = d.getData();
-            track = createSubclass(data, 'Track');
-            data.setTrack(track);
+            tracks = createSubclass(data, 'Tracks');
+            data.setTracks(tracks);
             % identify GPS points that lie within the  effort
             [first, last] = binary_search(effort_start, effort_end, gps.(utc_field));
             
-            % Create a points object to associate with the trackline
+            % Create a track object to associate with the trackline
             % information
-            lines = track.getPoints();
+            track_list = tracks.getTrack();
             
             % We do not have individual tracklines, so all GPS data between
             % the start and end time will go in the same set of points
             % Create track information and add it to the deployment
-            points = createSubclass(track, 'Points');
-            lines.add(points);
+            track = createSubclass(tracks, 'Track');
+            track_list.add(track);
             
             % The GPS sampling frequency of these deployments is much
             % higher than the rate of change.  We decimate the time
@@ -204,15 +206,15 @@ for pidx = 1:length(projects)
             series = timetable(timestamps, longitude, latitude, ...
                 'VariableNames', {'Longitude', 'Latitude'});
             % resampling and filling in gaps
-            interval = minutes(15);
+            interval = minutes(5);
             dseries = retime(series, 'regular', 'spline', 'TimeStep', interval);
             
-            point_list = points.getPoint();
+            point_list = track.getPoint();
             % Convert UTC to ISO8601 strings
             utc_strings = dbSerialDateToISO8601(dseries.timestamps);
 
             for gidx = 1:height(dseries)
-                point = createSubclass(points, 'Point');
+                point = createSubclass(track, 'Point');
                 point.setLatitude(helper.toXsDouble(dseries.Latitude(gidx)));
                 point.setLongitude(helper.toXsDouble(dseries.Longitude(gidx)));
                 point.setTimeStamp(helper.timestamp(utc_strings{gidx}));
@@ -256,9 +258,9 @@ for pidx = 1:length(projects)
             audio.setNumber(helper.toXsInteger(hydrophones(hidx)));
             % We do not have a serial number for the sensor assembly, use unit
             % number
-            audio.setSensorID(sprintf('%d', hydrophones(hidx)));
-            audio.setHydrophoneID('HTI-96-min');
-            audio.setPreampID('custom');
+            audio.setSensorId(sprintf('%d', hydrophones(hidx)));
+            audio.setHydrophoneId('HTI-96-min');
+            audio.setPreampId('custom');
             audio.setDescription('Arrays used HTI-96-min hydrophones and custom-built pre-amplifiers with combined average measured sensitivity of -144dB +/- 5dB re: 1V/uPa from 2-100 kHz and approximately linear roll-off to -156 dB +/- 2 dB re 1V/ uPa at 150kHz. The hydrophones have a strong high-pass filters at 1600 Hz to reduce low-frequency flow noise and ship noise, reducing sensitivity by 10dB at 1000 Hz. The acoustic DAQ sampled all six channels simultaneously at 500 kHz sample rate and applied 0-12 dB of gain to the incoming signal from each hydrophone. The preamplifier gain specific to each hydrophone and any additional gain applied to each channel through the DAQ during real-time monitoring is detailed in the metadata file provided.');
             % Geometry is available and would be populated here.
             audio_list.add(audio);
@@ -276,7 +278,7 @@ for pidx = 1:length(projects)
             % Depth sensors numbered the same as hydrophones
             depth.setNumber(helper.toXsInteger(hydrophones(hidx)));
             % No serial number, use unit number
-            depth.setSensorID(sprintf('%d', hydrophones(hidx)));
+            depth.setSensorId(sprintf('%d', hydrophones(hidx)));
             description = 'The inline and end arrays contained a Kellar (PA7FLE) or Honeywell (PX2EN1XX200PSCHX) depth sensor, with depth recorded every second with a voltage MicroDAQ (max voltage +/- 2V).  Depth data collected aboard the ';
             switch cruises(pidx)
                 case 'Lasker'

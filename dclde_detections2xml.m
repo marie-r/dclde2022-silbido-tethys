@@ -16,6 +16,8 @@ function dclde_detections2xml(xml_filename, id, DetPathList, FileStartList, EffS
 %   UserID- Character vector of name of User.
 %   SpeciesNum - ITIS taxonomic serial number assigned to species
 
+% We assume that the silbido_init has been run and that the Java
+% libraries for reading and writing tonal streams is available.
 import tonals.TonalBinaryInputStream;
 
 % Bring nilus package classes into current namespace
@@ -50,7 +52,7 @@ dataSource.setDeploymentId(DeploymentId);
 % Describe how these detections were done.
 algorithm = detections.getAlgorithm();
 helper.createRequiredElements(algorithm);
-algorithm.setMethod('Li, P., Liu, X., Palmer, K. J., Fleishman, E., Gillespie, D., Nosal, E.-M., Shiu , Y., Klinck, H., Cholewiak, D., Helble, T., and Roch, M. A. (2020). ``Learning Deep Models from Synthetic Data for Extracting Dolphin Whistle Contours,'' in Intl. Joint Conf. Neural Net. (Glasgow, Scotland, July 19-24), pp. 10. DOI:  10.1109/IJCNN48605.2020.9206992');
+algorithm.setMethod('Li et al. (2020) DOI: 10.1109/IJCNN48605.2020.9206992');
 algorithm.setSoftware('Silbido');
 algorithm.setVersion('beta3_0 12811d8');
 
@@ -80,7 +82,7 @@ kinds = effort.getKind();  % empty linked list
 kind = DetectionEffortKind();  % create entry to add to list
 helper.createRequiredElements(kind); % popluate mandatory elements
 kind.getSpeciesID().setValue(speciesNum);  % taxonomic serial number
-kind.getCall().setValue(call_type);  % call type
+kind.setCall(call_type);  % call type
 % Set the granularity to call (requires using the enumerated type)
 kind.getGranularity().setValue(GranularityEnumType.fromValue('call'));
 % Add the kind to the kind list
@@ -126,11 +128,8 @@ for i = 1:length(DetPathList)
         % Call is a list, create it and populate an instance
         helper.createElement(detection, 'Call');
         callList = detection.getCall(); % Get the empty list
-        acall = javaObject('nilus.Detection$Call');  % Create instance of Call
-        acall.setValue(call_type); 
-        callList.add(acall); %add one call to list
+        callList.add(call_type); %add one call to list
 
-        
         helper.createElement(detection, 'Parameters');
         parameters = detection.getParameters();
         % populate whistle information
@@ -140,7 +139,9 @@ for i = 1:length(DetPathList)
         freq_list = whistle.getHz();
         t_offset = t - t(1);  % time relative to start
         for meas_idx = 1:length(t)
-            time_list.add(t_offset(meas_idx));
+            % Round the offset(not needed but easier to read)
+            offset_s = round(t_offset(meas_idx), 3);
+            time_list.add(offset_s);
             freq_list.add(Hz(meas_idx));
         end
         parameters.setTonal(whistle);
@@ -151,6 +152,7 @@ for i = 1:length(DetPathList)
     end
 end
 fprintf('processed %d files\n', length(DetPathList));
+% Write XML to xml_filename
 marshaller.marshal(detections, xml_filename)
 end
 
